@@ -80,7 +80,7 @@ pub fn render(beans: &[Bean], parent_number: &[u32]) -> (String, Vec<BookItem>) 
             continue;
         }
 
-        content.push_str(&render_cards(&matching, beans, "beans/"));
+        content.push_str(&render_cards(&matching, beans, ""));
     }
 
     // Done page as sub_item
@@ -229,7 +229,7 @@ mod tests {
             make_bean("b-1", "My Task", BeanStatus::Todo, BeanType::Task),
         ];
         let (content, _) = render(&beans, &[7]);
-        assert!(content.contains("[My Task (b-1)]"));
+        assert!(content.contains("[My Task (b-1)](b-1.md)"));
     }
 
     #[test]
