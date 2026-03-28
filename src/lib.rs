@@ -8,6 +8,30 @@ use anyhow::Result;
 use mdbook_preprocessor::book::{Book, BookItem};
 use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 
+/// Walk book items and replace markers with rendered content.
+/// Uses direct iteration instead of `for_each_mut` to ensure sub_items
+/// are properly nested in the book structure.
+fn replace_markers(items: &mut Vec<BookItem>, beans: &[bean::Bean]) {
+    for item in items.iter_mut() {
+        if let BookItem::Chapter(chapter) = item {
+            if chapter.content.contains("{{#beans-kanban}}") {
+                chapter.content = kanban::render(beans);
+            } else if chapter.content.contains("{{#beans-tasks}}") {
+                let parent_number = chapter
+                    .number
+                    .as_ref()
+                    .map(|n| n.as_slice().to_vec())
+                    .unwrap_or_default();
+                let (content, sub_items) = tasks::render(beans, &parent_number);
+                chapter.content = content;
+                chapter.sub_items = sub_items;
+            } else {
+                replace_markers(&mut chapter.sub_items, beans);
+            }
+        }
+    }
+}
+
 pub struct BeansPreprocessor;
 
 impl Preprocessor for BeansPreprocessor {
@@ -21,17 +45,7 @@ impl Preprocessor for BeansPreprocessor {
         let config = config::BeansConfig::load(root)?;
         let beans = bean::load_beans(&project_root, &config)?;
 
-        book.for_each_mut(|item| {
-            if let BookItem::Chapter(chapter) = item {
-                if chapter.content.contains("{{#beans-kanban}}") {
-                    chapter.content = kanban::render(&beans);
-                } else if chapter.content.contains("{{#beans-tasks}}") {
-                    let (content, sub_items) = tasks::render(&beans);
-                    chapter.content = content;
-                    chapter.sub_items = sub_items;
-                }
-            }
-        });
+        replace_markers(&mut book.items, &beans);
 
         Ok(book)
     }

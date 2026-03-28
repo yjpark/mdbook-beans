@@ -52,7 +52,7 @@ pub fn render_bean_card(bean: &Bean, children: &[&Bean]) -> String {
     }
 
     // Link to bean's own page
-    card.push_str(&format!("\n\n[View →](beans/p/{}.md)\n", bean.id));
+    card.push_str(&format!("\n\n[View →](beans/{}.md)\n", bean.id));
 
     card
 }
@@ -83,7 +83,7 @@ pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
 
     if let Some(parent_id) = &bean.frontmatter.parent {
         page.push_str(&format!(
-            "| **Parent** | [{parent_id}]({parent_id}.md) |\n"
+            "| **Parent** | [\\<{parent_id}\\>]({parent_id}.md) |\n"
         ));
     }
 
@@ -92,7 +92,7 @@ pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
             .frontmatter
             .blocked_by
             .iter()
-            .map(|id| format!("[{id}]({id}.md)"))
+            .map(|id| format!("[\\<{id}\\>]({id}.md)"))
             .collect();
         page.push_str(&format!("| **Blocked by** | {} |\n", links.join(", ")));
     }
@@ -108,7 +108,7 @@ pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
             "| **Subtasks** | {} |\n",
             children
                 .iter()
-                .map(|c| format!("[{}]({}.md)", c.frontmatter.title, c.id))
+                .map(|c| format!("[\\<{}\\>]({}.md)", c.id, c.id))
                 .collect::<Vec<_>>()
                 .join(", ")
         ));
