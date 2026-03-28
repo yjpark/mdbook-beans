@@ -12,6 +12,7 @@ pub enum BeanStatus {
     Todo,
     InProgress,
     Done,
+    Completed,
     Archived,
 }
 

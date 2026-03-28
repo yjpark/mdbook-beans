@@ -17,7 +17,11 @@ pub fn render(beans: &[Bean]) -> String {
 
         let matching: Vec<&Bean> = beans
             .iter()
-            .filter(|b| &b.frontmatter.status == status)
+            .filter(|b| {
+                &b.frontmatter.status == status
+                    || (*status == BeanStatus::Done
+                        && b.frontmatter.status == BeanStatus::Completed)
+            })
             .collect();
 
         if matching.is_empty() {

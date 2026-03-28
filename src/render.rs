@@ -6,7 +6,7 @@ pub fn status_label(status: &BeanStatus) -> &'static str {
         BeanStatus::Draft => "Draft",
         BeanStatus::Todo => "Todo",
         BeanStatus::InProgress => "In Progress",
-        BeanStatus::Done => "Done",
+        BeanStatus::Done | BeanStatus::Completed => "Done",
         BeanStatus::Archived => "Archived",
     }
 }
@@ -38,7 +38,10 @@ pub fn render_bean_card(bean: &Bean, children: &[&Bean]) -> String {
     if bean.frontmatter.bean_type == BeanType::Epic && !children.is_empty() {
         let done_count = children
             .iter()
-            .filter(|c| c.frontmatter.status == BeanStatus::Done)
+            .filter(|c| {
+                c.frontmatter.status == BeanStatus::Done
+                    || c.frontmatter.status == BeanStatus::Completed
+            })
             .count();
         card.push_str(&format!(" · ({}/{} done)", done_count, children.len()));
     }

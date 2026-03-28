@@ -21,13 +21,38 @@ pub struct BeansPathConfig {
 }
 
 impl BeansConfig {
+    /// Load `.beans.yml` by searching from `root` upward through parent directories.
+    /// This supports books nested inside a project (e.g., `project/docs/` where
+    /// `.beans.yml` is at `project/`).
     pub fn load(root: &Path) -> Result<Self> {
-        let config_path = root.join(".beans.yml");
+        let config_path = Self::find_config(root)
+            .with_context(|| format!("no .beans.yml found at or above {}", root.display()))?;
         let content = std::fs::read_to_string(&config_path)
             .with_context(|| format!("failed to read {}", config_path.display()))?;
         let config: BeansConfig = serde_yml::from_str(&content)
             .with_context(|| format!("failed to parse {}", config_path.display()))?;
         Ok(config)
+    }
+
+    /// Find `.beans.yml` by walking up from `start` through parent directories.
+    fn find_config(start: &Path) -> Option<PathBuf> {
+        let mut dir = start.to_path_buf();
+        loop {
+            let candidate = dir.join(".beans.yml");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+            if !dir.pop() {
+                return None;
+            }
+        }
+    }
+
+    /// Return the directory containing `.beans.yml` (the project root).
+    pub fn project_root(root: &Path) -> Result<PathBuf> {
+        let config_path = Self::find_config(root)
+            .with_context(|| format!("no .beans.yml found at or above {}", root.display()))?;
+        Ok(config_path.parent().unwrap().to_path_buf())
     }
 }
 

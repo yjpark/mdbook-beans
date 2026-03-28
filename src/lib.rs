@@ -17,8 +17,9 @@ impl Preprocessor for BeansPreprocessor {
 
     fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book> {
         let root = &ctx.root;
+        let project_root = config::BeansConfig::project_root(root)?;
         let config = config::BeansConfig::load(root)?;
-        let beans = bean::load_beans(root, &config)?;
+        let beans = bean::load_beans(&project_root, &config)?;
 
         book.for_each_mut(|item| {
             if let BookItem::Chapter(chapter) = item {
