@@ -13,24 +13,43 @@ const TYPE_SECTIONS: &[(BeanType, &str)] = &[
     (BeanType::Chore, "Chores"),
 ];
 
-/// Render a type section as a sub-chapter containing all beans of that type inline.
-fn render_type_section(label: &str, beans: &[&Bean], all_beans: &[Bean]) -> Chapter {
-    let mut content = format!("# {label}\n\n");
-
-    for bean in beans {
-        content.push_str(&render::render_bean_section(bean, all_beans));
-        content.push_str("\n---\n\n");
-    }
-
-    let slug = label.to_lowercase();
-    let path = format!("beans/{slug}.md");
-    let mut chapter = Chapter::new(label, content, &path, vec![]);
+fn make_bean_chapter(bean: &Bean, all_beans: &[Bean]) -> BookItem {
+    let page_content = render::render_bean_section(bean, all_beans);
+    let path = format!("beans/{}.md", bean.id);
+    let mut chapter = Chapter::new(&bean.frontmatter.title, page_content, &path, vec![]);
     chapter.source_path = None;
-    chapter
+    BookItem::Chapter(chapter)
 }
 
-/// Render the All Tasks chapter with type sections as collapsible sub-items.
-/// Returns (index page content, sub_item chapters per type section).
+fn make_type_section(label: &str, beans: &[&Bean], all_beans: &[Bean]) -> BookItem {
+    let slug = label.to_lowercase().replace(' ', "-");
+    let path = format!("beans/type-{slug}.md");
+
+    // Type section index page: list of beans with links
+    let mut content = format!("# {label}\n\n");
+    for bean in beans {
+        content.push_str(&format!(
+            "- [{}]({}.md) — *{}*\n",
+            bean.frontmatter.title,
+            bean.id,
+            render::status_label(&bean.frontmatter.status)
+        ));
+    }
+
+    let mut chapter = Chapter::new(label, content, &path, vec![]);
+    chapter.source_path = None;
+
+    // Each bean is a sub_item of its type section -> own page
+    chapter.sub_items = beans
+        .iter()
+        .map(|bean| make_bean_chapter(bean, all_beans))
+        .collect();
+
+    BookItem::Chapter(chapter)
+}
+
+/// Render the All Tasks chapter with type sections and individual bean pages.
+/// Returns (index page content, sub_item chapters).
 pub fn render(beans: &[Bean]) -> (String, Vec<BookItem>) {
     let mut content = String::from("# All Tasks\n\n");
     let mut sub_items: Vec<BookItem> = Vec::new();
@@ -52,7 +71,7 @@ pub fn render(beans: &[Bean]) -> (String, Vec<BookItem>) {
             continue;
         }
 
-        // Index page: list beans per type
+        // Index page summary
         content.push_str(&format!("## {section_label}\n\n"));
 
         for bean in &matching {
@@ -77,15 +96,10 @@ pub fn render(beans: &[Bean]) -> (String, Vec<BookItem>) {
 
         content.push('\n');
 
-        // Sub-chapter for this type
-        sub_items.push(BookItem::Chapter(render_type_section(
-            section_label,
-            &matching,
-            beans,
-        )));
+        sub_items.push(make_type_section(section_label, &matching, beans));
     }
 
-    // Draft beans
+    // Drafts
     let drafts: Vec<&Bean> = beans
         .iter()
         .filter(|b| b.frontmatter.status == BeanStatus::Draft)
@@ -101,9 +115,7 @@ pub fn render(beans: &[Bean]) -> (String, Vec<BookItem>) {
         }
         content.push('\n');
 
-        sub_items.push(BookItem::Chapter(render_type_section(
-            "Drafts", &drafts, beans,
-        )));
+        sub_items.push(make_type_section("Drafts", &drafts, beans));
     }
 
     (content, sub_items)
@@ -150,40 +162,43 @@ mod tests {
     }
 
     #[test]
-    fn tasks_creates_type_sub_items() {
+    fn tasks_creates_type_sections_with_bean_sub_items() {
         let beans = vec![
-            make_bean("b-1", "A feature", BeanStatus::Todo, BeanType::Feature, None),
-            make_bean("b-2", "A bug", BeanStatus::Todo, BeanType::Bug, None),
-            make_bean("b-3", "A task", BeanStatus::Todo, BeanType::Task, None),
+            make_bean("b-1", "Feat one", BeanStatus::Todo, BeanType::Feature, None),
+            make_bean("b-2", "Feat two", BeanStatus::Done, BeanType::Feature, None),
+            make_bean("b-3", "A bug", BeanStatus::Todo, BeanType::Bug, None),
         ];
         let (_, sub_items) = render(&beans);
-        assert_eq!(sub_items.len(), 3); // Features, Tasks, Bugs
+        assert_eq!(sub_items.len(), 2); // Features, Bugs
 
-        let names: Vec<&str> = sub_items
-            .iter()
-            .filter_map(|item| {
-                if let BookItem::Chapter(ch) = item {
-                    Some(ch.name.as_str())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        assert!(names.contains(&"Features"));
-        assert!(names.contains(&"Tasks"));
-        assert!(names.contains(&"Bugs"));
+        // Features section should have 2 bean sub_items
+        if let BookItem::Chapter(features_ch) = &sub_items[0] {
+            assert_eq!(features_ch.name, "Features");
+            assert_eq!(features_ch.sub_items.len(), 2);
+
+            // Each bean has its own path
+            if let BookItem::Chapter(bean_ch) = &features_ch.sub_items[0] {
+                let path = bean_ch.path.as_ref().unwrap().to_string_lossy();
+                assert_eq!(path, "beans/b-1.md");
+            }
+        }
     }
 
     #[test]
-    fn tasks_epic_lists_subtasks_inline() {
+    fn tasks_bean_pages_have_stable_paths() {
         let beans = vec![
-            make_bean("b-epic", "My Epic", BeanStatus::InProgress, BeanType::Epic, None),
-            make_bean("b-sub1", "Sub 1", BeanStatus::Done, BeanType::Task, Some("b-epic")),
-            make_bean("b-sub2", "Sub 2", BeanStatus::Todo, BeanType::Feature, Some("b-epic")),
+            make_bean("b-1", "Task one", BeanStatus::Todo, BeanType::Task, None),
         ];
-        let (content, _) = render(&beans);
-        assert!(content.contains("Sub 1"));
-        assert!(content.contains("Sub 2"));
+        let (_, sub_items) = render(&beans);
+        if let BookItem::Chapter(type_ch) = &sub_items[0] {
+            if let BookItem::Chapter(bean_ch) = &type_ch.sub_items[0] {
+                assert_eq!(
+                    bean_ch.path.as_ref().unwrap().to_string_lossy(),
+                    "beans/b-1.md"
+                );
+                assert!(bean_ch.content.contains("Body of Task one"));
+            }
+        }
     }
 
     #[test]
@@ -197,21 +212,9 @@ mod tests {
         let drafts_pos = content.find("## Drafts").unwrap();
         assert!(tasks_pos < drafts_pos);
 
-        // Drafts should be a sub-item too
         let last = sub_items.last().unwrap();
         if let BookItem::Chapter(ch) = last {
             assert_eq!(ch.name, "Drafts");
-        }
-    }
-
-    #[test]
-    fn type_section_contains_bean_content() {
-        let beans = vec![
-            make_bean("b-1", "Task one", BeanStatus::Todo, BeanType::Task, None),
-        ];
-        let (_, sub_items) = render(&beans);
-        if let BookItem::Chapter(ch) = &sub_items[0] {
-            assert!(ch.content.contains("Body of Task one"));
         }
     }
 }
