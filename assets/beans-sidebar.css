@@ -4,3 +4,8 @@
 li.chapter-item > ol.section > li.chapter-item > ol.section strong[aria-hidden] {
     display: none;
 }
+
+/* Bean detail page: full-width metadata table */
+.bean-meta table {
+    width: 100%;
+}

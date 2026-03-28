@@ -15,8 +15,8 @@ const TYPE_SECTIONS: &[(BeanType, &str)] = &[
 
 fn bean_link(bean: &Bean) -> String {
     format!(
-        "[\\<{}\\> {}]({}.md)",
-        bean.id, bean.frontmatter.title, bean.id
+        "[{} ({})]({}.md)",
+        bean.frontmatter.title, bean.id, bean.id
     )
 }
 
@@ -29,7 +29,7 @@ fn make_bean_chapter(
 ) -> BookItem {
     let page_content = render::render_bean_section(bean, all_beans);
     let path = format!("beans/{}.md", bean.id);
-    let name = format!("<{}> {}", bean.id, bean.frontmatter.title);
+    let name = format!("{} ({})", bean.frontmatter.title, bean.id);
     let mut chapter = Chapter::new(&name, page_content, &path, parent_names);
     chapter.source_path = None;
     let mut num = parent_number.to_vec();
@@ -214,8 +214,8 @@ mod tests {
             make_bean("b-2", "A bug", BeanStatus::Todo, BeanType::Bug, None),
         ];
         let (content, _) = render(&beans, &[8]);
-        assert!(content.contains("[\\<b-1\\> Feat one](b-1.md)"));
-        assert!(content.contains("[\\<b-2\\> A bug](b-2.md)"));
+        assert!(content.contains("[Feat one (b-1)](b-1.md)"));
+        assert!(content.contains("[A bug (b-2)](b-2.md)"));
     }
 
     #[test]

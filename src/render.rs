@@ -57,11 +57,26 @@ pub fn render_bean_card(bean: &Bean, children: &[&Bean]) -> String {
     card
 }
 
+/// Format a bean reference link: `Title (id)`
+fn bean_ref(id: &str, title: &str) -> String {
+    format!("[{title} ({id})]({id}.md)")
+}
+
+/// Look up a bean by ID and format a reference link.
+fn bean_ref_by_id<'a>(id: &str, all_beans: &'a [Bean]) -> String {
+    if let Some(b) = all_beans.iter().find(|b| b.id == id) {
+        bean_ref(id, &b.frontmatter.title)
+    } else {
+        format!("[({id})]({id}.md)")
+    }
+}
+
 /// Render a bean as its own page.
 pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
-    let mut page = format!("# {} (`{}`)\n\n", bean.frontmatter.title, bean.id);
+    let mut page = format!("# {} ({})\n\n", bean.frontmatter.title, bean.id);
 
-    // Metadata table
+    // Metadata table (full width via HTML style)
+    page.push_str("<div class=\"bean-meta\">\n\n");
     page.push_str("| | |\n|---|---|\n");
     page.push_str(&format!(
         "| **Status** | {} |\n",
@@ -83,7 +98,8 @@ pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
 
     if let Some(parent_id) = &bean.frontmatter.parent {
         page.push_str(&format!(
-            "| **Parent** | [\\<{parent_id}\\>]({parent_id}.md) |\n"
+            "| **Parent** | {} |\n",
+            bean_ref_by_id(parent_id, all_beans)
         ));
     }
 
@@ -92,29 +108,29 @@ pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
             .frontmatter
             .blocked_by
             .iter()
-            .map(|id| format!("[\\<{id}\\>]({id}.md)"))
+            .map(|id| bean_ref_by_id(id, all_beans))
             .collect();
         page.push_str(&format!("| **Blocked by** | {} |\n", links.join(", ")));
     }
 
-    // Subtasks list (for epics)
+    // Subtasks list (for epics) — one per row
     let children: Vec<&Bean> = all_beans
         .iter()
         .filter(|b| b.frontmatter.parent.as_deref() == Some(&bean.id))
         .collect();
 
     if !children.is_empty() {
-        page.push_str(&format!(
-            "| **Subtasks** | {} |\n",
-            children
-                .iter()
-                .map(|c| format!("[\\<{}\\>]({}.md)", c.id, c.id))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ));
+        for (i, child) in children.iter().enumerate() {
+            let label = if i == 0 { "**Subtasks**" } else { "" };
+            page.push_str(&format!(
+                "| {} | {} |\n",
+                label,
+                bean_ref(&child.id, &child.frontmatter.title)
+            ));
+        }
     }
 
-    page.push('\n');
+    page.push_str("\n</div>\n\n");
 
     // Body
     if !bean.body.is_empty() {
