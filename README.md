@@ -19,15 +19,27 @@ Add the preprocessor to your `book.toml`:
 [preprocessor.beans]
 ```
 
-Place markers in your `SUMMARY.md` where you want the chapters to appear:
+Create stub markdown files with markers, then reference them in `SUMMARY.md`:
+
+```markdown
+<!-- src/beans/kanban.md -->
+{{#beans-kanban}}
+```
+
+```markdown
+<!-- src/beans/tasks.md -->
+{{#beans-tasks}}
+```
 
 ```markdown
 # Summary
 
 - [Introduction](./intro.md)
-- [Kanban]({{#beans-kanban}})
-- [All Tasks]({{#beans-tasks}})
+- [Kanban](beans/kanban.md)
+- [All Tasks](beans/tasks.md)
 ```
+
+The preprocessor finds the markers and replaces the content with generated chapters.
 
 ## Requirements
 
