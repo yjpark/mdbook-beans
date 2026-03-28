@@ -51,42 +51,40 @@ pub fn render_bean_card(bean: &Bean, children: &[&Bean]) -> String {
         card.push_str(&format!(" · ↑ {parent_id}"));
     }
 
-    // Link to full details (anchor on All Tasks page)
-    card.push_str(&format!("\n\n[View →](beans/tasks.md#{})\n", bean.id));
+    // Link to bean's own page
+    card.push_str(&format!("\n\n[View →](beans/p/{}.md)\n", bean.id));
 
     card
 }
 
-/// Render a bean as an inline section with anchor ID for the All Tasks page.
+/// Render a bean as its own page.
 pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
-    // Use HTML anchor for stable linking since mdBook generates its own heading IDs
-    let mut section = format!(
-        "<a id=\"{}\"></a>\n\n### {} (`{}`)\n\n",
-        bean.id, bean.frontmatter.title, bean.id
-    );
+    let mut page = format!("# {} (`{}`)\n\n", bean.frontmatter.title, bean.id);
 
     // Metadata table
-    section.push_str("| | |\n|---|---|\n");
-    section.push_str(&format!(
+    page.push_str("| | |\n|---|---|\n");
+    page.push_str(&format!(
         "| **Status** | {} |\n",
         status_label(&bean.frontmatter.status)
     ));
-    section.push_str(&format!(
+    page.push_str(&format!(
         "| **Type** | {} |\n",
         type_label(&bean.frontmatter.bean_type)
     ));
-    section.push_str(&format!(
+    page.push_str(&format!(
         "| **Priority** | {} |\n",
         bean.frontmatter.priority
     ));
 
     if !bean.frontmatter.tags.is_empty() {
         let tags = bean.frontmatter.tags.join(", ");
-        section.push_str(&format!("| **Tags** | {tags} |\n"));
+        page.push_str(&format!("| **Tags** | {tags} |\n"));
     }
 
     if let Some(parent_id) = &bean.frontmatter.parent {
-        section.push_str(&format!("| **Parent** | [{}](#{}) |\n", parent_id, parent_id));
+        page.push_str(&format!(
+            "| **Parent** | [{parent_id}]({parent_id}.md) |\n"
+        ));
     }
 
     if !bean.frontmatter.blocked_by.is_empty() {
@@ -94,9 +92,9 @@ pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
             .frontmatter
             .blocked_by
             .iter()
-            .map(|id| format!("[{id}](#{id})"))
+            .map(|id| format!("[{id}]({id}.md)"))
             .collect();
-        section.push_str(&format!("| **Blocked by** | {} |\n", links.join(", ")));
+        page.push_str(&format!("| **Blocked by** | {} |\n", links.join(", ")));
     }
 
     // Subtasks list (for epics)
@@ -106,23 +104,23 @@ pub fn render_bean_section(bean: &Bean, all_beans: &[Bean]) -> String {
         .collect();
 
     if !children.is_empty() {
-        section.push_str(&format!(
+        page.push_str(&format!(
             "| **Subtasks** | {} |\n",
             children
                 .iter()
-                .map(|c| format!("[{}](#{})", c.frontmatter.title, c.id))
+                .map(|c| format!("[{}]({}.md)", c.frontmatter.title, c.id))
                 .collect::<Vec<_>>()
                 .join(", ")
         ));
     }
 
-    section.push('\n');
+    page.push('\n');
 
     // Body
     if !bean.body.is_empty() {
-        section.push_str(&bean.body);
-        section.push('\n');
+        page.push_str(&bean.body);
+        page.push('\n');
     }
 
-    section
+    page
 }

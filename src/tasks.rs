@@ -15,7 +15,8 @@ const TYPE_SECTIONS: &[(BeanType, &str)] = &[
 
 fn make_bean_chapter(bean: &Bean, all_beans: &[Bean]) -> BookItem {
     let page_content = render::render_bean_section(bean, all_beans);
-    let path = format!("beans/{}.md", bean.id);
+    // Use beans/p/ prefix so CSS can hide these from sidebar
+    let path = format!("beans/p/{}.md", bean.id);
     let mut chapter = Chapter::new(&bean.frontmatter.title, page_content, &path, vec![]);
     chapter.source_path = None;
     BookItem::Chapter(chapter)
@@ -29,7 +30,7 @@ fn make_type_section(label: &str, beans: &[&Bean], all_beans: &[Bean]) -> BookIt
     let mut content = format!("# {label}\n\n");
     for bean in beans {
         content.push_str(&format!(
-            "- [{}]({}.md) — *{}*\n",
+            "- [{}](p/{}.md) — *{}*\n",
             bean.frontmatter.title,
             bean.id,
             render::status_label(&bean.frontmatter.status)
@@ -179,7 +180,7 @@ mod tests {
             // Each bean has its own path
             if let BookItem::Chapter(bean_ch) = &features_ch.sub_items[0] {
                 let path = bean_ch.path.as_ref().unwrap().to_string_lossy();
-                assert_eq!(path, "beans/b-1.md");
+                assert_eq!(path, "beans/p/b-1.md");
             }
         }
     }
@@ -194,7 +195,7 @@ mod tests {
             if let BookItem::Chapter(bean_ch) = &type_ch.sub_items[0] {
                 assert_eq!(
                     bean_ch.path.as_ref().unwrap().to_string_lossy(),
-                    "beans/b-1.md"
+                    "beans/p/b-1.md"
                 );
                 assert!(bean_ch.content.contains("Body of Task one"));
             }
